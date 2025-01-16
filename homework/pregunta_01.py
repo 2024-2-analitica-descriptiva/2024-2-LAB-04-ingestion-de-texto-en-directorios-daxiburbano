@@ -4,6 +4,11 @@
 """
 Escriba el codigo que ejecute la accion solicitada en cada pregunta.
 """
+import csv
+import fileinput
+import glob
+import os
+import zipfile
 
 
 def pregunta_01():
@@ -71,3 +76,63 @@ def pregunta_01():
 
 
     """
+    # Función para leer registros
+    def load_files(input_directory):
+        """Lee todas las líneas de los archivos en un directorio y retorna un generador."""
+        files = glob.glob(os.path.join(input_directory, "*"))
+        for file_path in files:
+            with open(file_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    yield (line.strip(), os.path.basename(input_directory))
+
+    # Función para exportar los datos a un archivo CSV
+    def export_to_csv(data, output_directory, filename):
+        """Exporta los datos a un archivo CSV en el directorio de salida."""
+        # Crear el directorio de salida si no existe
+        os.makedirs(output_directory, exist_ok=True)
+
+        # Ruta completa del archivo de salida
+        file_path = os.path.join(output_directory, filename)
+
+        # Escribir los datos en un archivo CSV
+        with open(file_path, "w", newline="", encoding="utf-8") as csvfile:
+            fieldnames = ["phrase", "target"]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in data:
+                writer.writerow({"phrase": row[0], "target": row[1]})
+
+    # Función para procesar los archivos
+    def run_job(zip_file, output_directory):
+        """Descomprime el archivo ZIP y procesa los archivos para generar CSVs."""
+
+        def unzip_files(zip_file):
+            """Descomprime los archivos ZIP en un directorio."""
+            with zipfile.ZipFile(zip_file, "r") as zip_ref:
+                zip_ref.extractall("files/input")  # Directorio donde se descomprime el ZIP
+
+        def process_files(input_directory, output_directory):
+            """Procesa los archivos descomprimidos y genera los CSVs."""
+            for folder in ["train", "test"]:  # Procesar las carpetas train y test
+                data = []
+                folder_path = os.path.join(input_directory, folder)
+                for sentiment_folder in glob.glob(os.path.join(folder_path, "*")):
+                    # Leer los archivos dentro de cada subcarpeta (positive, negative, neutral)
+                    data.extend(load_files(sentiment_folder))
+
+                # Nombre del archivo CSV basado en la carpeta (train o test)
+                filename = f"{folder}_dataset.csv"
+                export_to_csv(data, output_directory, filename)
+
+        unzip_files(zip_file)  # Descomprimir el ZIP
+        process_files("files/input", output_directory)  # Procesar archivos
+
+    # Ejecutar el trabajo principal
+    run_job("files/input.zip", "files/output")
+
+    return "Proceso finalizado"
+
+
+# Ejecutar la función principal
+if __name__ == "__main__":
+    print(pregunta_01())
